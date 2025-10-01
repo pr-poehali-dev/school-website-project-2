@@ -14,9 +14,11 @@ interface Member {
 interface MembersSectionProps {
   members: Member[];
   onRemoveMember: (id: number) => void;
+  onPromoteToAdmin: (id: number) => void;
+  onDemoteToMember: (id: number) => void;
 }
 
-const MembersSection = ({ members, onRemoveMember }: MembersSectionProps) => {
+const MembersSection = ({ members, onRemoveMember, onPromoteToAdmin, onDemoteToMember }: MembersSectionProps) => {
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       <Card>
@@ -49,14 +51,33 @@ const MembersSection = ({ members, onRemoveMember }: MembersSectionProps) => {
                     <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
                       {member.role === 'admin' ? 'Администратор' : 'Участник'}
                     </Badge>
-                    {member.role !== 'admin' && (
+                    {member.role === 'member' ? (
+                      <>
+                        <Button
+                          onClick={() => onPromoteToAdmin(member.id)}
+                          variant="default"
+                          size="sm"
+                        >
+                          <Icon name="Shield" size={16} className="mr-1" />
+                          Назначить админом
+                        </Button>
+                        <Button
+                          onClick={() => onRemoveMember(member.id)}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <Icon name="UserX" size={16} className="mr-1" />
+                          Исключить
+                        </Button>
+                      </>
+                    ) : (
                       <Button
-                        onClick={() => onRemoveMember(member.id)}
-                        variant="destructive"
+                        onClick={() => onDemoteToMember(member.id)}
+                        variant="outline"
                         size="sm"
                       >
-                        <Icon name="UserX" size={16} className="mr-1" />
-                        Исключить
+                        <Icon name="ShieldOff" size={16} className="mr-1" />
+                        Снять права
                       </Button>
                     )}
                   </div>

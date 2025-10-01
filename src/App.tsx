@@ -288,6 +288,50 @@ function App() {
     }
   };
 
+  const handlePromoteToAdmin = async (id: number) => {
+    if (!confirm('Вы уверены, что хотите назначить этого пользователя администратором?')) return;
+    
+    try {
+      const response = await fetch(API_URLS.members, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Role': 'admin' 
+        },
+        body: JSON.stringify({ id, role: 'admin' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({ title: 'Пользователь назначен администратором' });
+        loadMembers();
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
+    }
+  };
+
+  const handleDemoteToMember = async (id: number) => {
+    if (!confirm('Вы уверены, что хотите снять права администратора?')) return;
+    
+    try {
+      const response = await fetch(API_URLS.members, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Role': 'admin' 
+        },
+        body: JSON.stringify({ id, role: 'member' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({ title: 'Права администратора сняты' });
+        loadMembers();
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -344,6 +388,8 @@ function App() {
           <MembersSection
             members={members}
             onRemoveMember={handleRemoveMember}
+            onPromoteToAdmin={handlePromoteToAdmin}
+            onDemoteToMember={handleDemoteToMember}
           />
         )}
 

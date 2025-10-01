@@ -1,5 +1,5 @@
 '''
-Business: Управление участниками клуба (получение списка, удаление участников)
+Business: Управление участниками клуба (получение списка, удаление, изменение роли)
 Args: event с httpMethod, body, headers; context с request_id
 Returns: HTTP response со списком участников или статусом операции
 '''
@@ -21,7 +21,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+                'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, X-User-Role',
                 'Access-Control-Max-Age': '86400'
             },
@@ -52,6 +52,37 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'statusCode': 200,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
                 'body': json.dumps([dict(member) for member in members], default=str)
+            }
+        
+        elif method == 'PUT':
+            body = json.loads(event.get('body', '{}'))
+            user_id = body.get('id')
+            new_role = body.get('role')
+            
+            if not user_id or not new_role:
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'User ID and role required'})
+                }
+            
+            if new_role not in ['admin', 'member']:
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Invalid role'})
+                }
+            
+            cursor.execute(
+                "UPDATE users SET role = %s WHERE id = %s",
+                (new_role, user_id)
+            )
+            conn.commit()
+            
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': True})
             }
         
         elif method == 'DELETE':
