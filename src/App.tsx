@@ -274,6 +274,30 @@ function App() {
     }
   };
 
+  const handleCreateNews = async (newsData: { title: string; content: string; image_url?: string; video_url?: string }) => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch(API_URLS.news, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': user.id.toString()
+        },
+        body: JSON.stringify(newsData)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({ title: 'Новость опубликована!' });
+        loadNews();
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось опубликовать новость', variant: 'destructive' });
+    }
+  };
+
   const loadMembers = async () => {
     try {
       const response = await fetch(API_URLS.members, {
@@ -392,7 +416,11 @@ function App() {
         )}
 
         {activeSection === 'news' && (
-          <NewsListSection news={news} />
+          <NewsListSection 
+            news={news} 
+            isAdmin={user?.role === 'admin'} 
+            onCreateNews={handleCreateNews}
+          />
         )}
 
         {activeSection === 'attendance' && user?.role === 'admin' && (
