@@ -43,21 +43,80 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         if method == 'GET':
-            cursor.execute(
-                "SELECT id, email, full_name, role, created_at FROM users ORDER BY created_at DESC"
-            )
-            members = cursor.fetchall()
+            query_params = event.get('queryStringParameters', {}) or {}
             
-            return {
-                'statusCode': 200,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps([dict(member) for member in members], default=str)
-            }
+            if query_params.get('history') == 'true':
+                user_id = query_params.get('user_id')
+                
+                if user_id:
+                    cursor.execute(
+                        """
+                        SELECT 
+                            rh.id,
+                            rh.user_id,
+                            u.full_name as user_name,
+                            u.email as user_email,
+                            rh.old_role,
+                            rh.new_role,
+                            rh.changed_by_admin_id,
+                            a.full_name as admin_name,
+                            rh.changed_at,
+                            rh.reason
+                        FROM role_history rh
+                        LEFT JOIN users u ON rh.user_id = u.id
+                        LEFT JOIN users a ON rh.changed_by_admin_id = a.id
+                        WHERE rh.user_id = %s
+                        ORDER BY rh.changed_at DESC
+                        """,
+                        (user_id,)
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT 
+                            rh.id,
+                            rh.user_id,
+                            u.full_name as user_name,
+                            u.email as user_email,
+                            rh.old_role,
+                            rh.new_role,
+                            rh.changed_by_admin_id,
+                            a.full_name as admin_name,
+                            rh.changed_at,
+                            rh.reason
+                        FROM role_history rh
+                        LEFT JOIN users u ON rh.user_id = u.id
+                        LEFT JOIN users a ON rh.changed_by_admin_id = a.id
+                        ORDER BY rh.changed_at DESC
+                        LIMIT 100
+                        """
+                    )
+                
+                history = cursor.fetchall()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps([dict(record) for record in history], default=str)
+                }
+            else:
+                cursor.execute(
+                    "SELECT id, email, full_name, role, created_at FROM users ORDER BY created_at DESC"
+                )
+                members = cursor.fetchall()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps([dict(member) for member in members], default=str)
+                }
         
         elif method == 'PUT':
             body = json.loads(event.get('body', '{}'))
             user_id = body.get('id')
             new_role = body.get('role')
+            admin_id = body.get('admin_id')
+            reason = body.get('reason', '')
             
             if not user_id or not new_role:
                 return {
@@ -72,6 +131,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
                     'body': json.dumps({'error': 'Invalid role'})
                 }
+            
+            cursor.execute(
+                "SELECT role FROM users WHERE id = %s",
+                (user_id,)
+            )
+            user = cursor.fetchone()
+            old_role = user['role'] if user else None
+            
+            if old_role and old_role != new_role:
+                cursor.execute(
+                    "INSERT INTO role_history (user_id, old_role, new_role, changed_by_admin_id, reason) VALUES (%s, %s, %s, %s, %s)",
+                    (user_id, old_role, new_role, admin_id, reason)
+                )
             
             cursor.execute(
                 "UPDATE users SET role = %s WHERE id = %s",

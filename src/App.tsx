@@ -9,6 +9,7 @@ import AttendanceSection from '@/components/AttendanceSection';
 import ApplicationSection from '@/components/ApplicationSection';
 import ContactsSection from '@/components/ContactsSection';
 import MembersSection from '@/components/MembersSection';
+import RoleHistorySection from '@/components/RoleHistorySection';
 import SchoolFooter from '@/components/SchoolFooter';
 
 const API_URLS = {
@@ -54,6 +55,19 @@ interface AttendanceRecord {
   notes: string;
 }
 
+interface RoleHistoryRecord {
+  id: number;
+  user_id: number;
+  user_name: string;
+  user_email: string;
+  old_role: string;
+  new_role: string;
+  changed_by_admin_id: number | null;
+  admin_name: string | null;
+  changed_at: string;
+  reason: string | null;
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeSection, setActiveSection] = useState('home');
@@ -63,6 +77,7 @@ function App() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [members, setMembers] = useState<User[]>([]);
+  const [roleHistory, setRoleHistory] = useState<RoleHistoryRecord[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,6 +98,7 @@ function App() {
     }
     if (activeSection === 'members' && user?.role === 'admin') {
       loadMembers();
+      loadRoleHistory();
     }
   }, [activeSection, attendanceDate, user]);
 
@@ -270,6 +286,18 @@ function App() {
     }
   };
 
+  const loadRoleHistory = async () => {
+    try {
+      const response = await fetch(`${API_URLS.members}?history=true`, {
+        headers: { 'X-User-Role': 'admin' }
+      });
+      const data = await response.json();
+      setRoleHistory(data);
+    } catch (error) {
+      console.error('Ошибка загрузки истории:', error);
+    }
+  };
+
   const handleRemoveMember = async (id: number) => {
     if (!confirm('Вы уверены, что хотите исключить этого участника?')) return;
     
@@ -298,12 +326,13 @@ function App() {
           'Content-Type': 'application/json',
           'X-User-Role': 'admin' 
         },
-        body: JSON.stringify({ id, role: 'admin' })
+        body: JSON.stringify({ id, role: 'admin', admin_id: user?.id })
       });
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Пользователь назначен администратором' });
         loadMembers();
+        loadRoleHistory();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
@@ -320,12 +349,13 @@ function App() {
           'Content-Type': 'application/json',
           'X-User-Role': 'admin' 
         },
-        body: JSON.stringify({ id, role: 'member' })
+        body: JSON.stringify({ id, role: 'member', admin_id: user?.id })
       });
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Права администратора сняты' });
         loadMembers();
+        loadRoleHistory();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
@@ -385,12 +415,15 @@ function App() {
         )}
 
         {activeSection === 'members' && user?.role === 'admin' && (
-          <MembersSection
-            members={members}
-            onRemoveMember={handleRemoveMember}
-            onPromoteToAdmin={handlePromoteToAdmin}
-            onDemoteToMember={handleDemoteToMember}
-          />
+          <>
+            <MembersSection
+              members={members}
+              onRemoveMember={handleRemoveMember}
+              onPromoteToAdmin={handlePromoteToAdmin}
+              onDemoteToMember={handleDemoteToMember}
+            />
+            <RoleHistorySection history={roleHistory} />
+          </>
         )}
 
         {activeSection === 'contacts' && <ContactsSection />}
