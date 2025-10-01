@@ -30,10 +30,10 @@ const ApplicationSection = ({ applications, isAdmin, onSubmit, onApprove, onReje
       <Card>
         <CardHeader>
           <CardTitle className="text-3xl flex items-center gap-2">
-            <Icon name="FileText" className="text-primary" />
+            <Icon name="Palette" className="text-primary" />
             Заявка на вступление
           </CardTitle>
-          <CardDescription>Заполните форму, чтобы присоединиться к нашему клубу</CardDescription>
+          <CardDescription>Заполните форму, чтобы присоединиться к клубу рисования</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
