@@ -20,9 +20,11 @@ interface ApplicationSectionProps {
   applications: Application[];
   isAdmin: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  onApprove?: (id: number) => void;
+  onReject?: (id: number) => void;
 }
 
-const ApplicationSection = ({ applications, isAdmin, onSubmit }: ApplicationSectionProps) => {
+const ApplicationSection = ({ applications, isAdmin, onSubmit, onApprove, onReject }: ApplicationSectionProps) => {
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
       <Card>
@@ -73,14 +75,26 @@ const ApplicationSection = ({ applications, isAdmin, onSubmit }: ApplicationSect
                       <p className="font-medium">{app.full_name}</p>
                       <p className="text-sm text-muted-foreground">{app.email} • {app.phone}</p>
                     </div>
-                    <Badge variant={app.status === 'pending' ? 'secondary' : 'default'}>
-                      {app.status}
+                    <Badge variant={app.status === 'pending' ? 'secondary' : app.status === 'approved' ? 'default' : 'destructive'}>
+                      {app.status === 'pending' ? 'На рассмотрении' : app.status === 'approved' ? 'Одобрено' : 'Отклонено'}
                     </Badge>
                   </div>
                   <p className="text-sm mt-2">{app.message}</p>
                   <p className="text-xs text-muted-foreground mt-2">
                     {new Date(app.created_at).toLocaleString('ru')}
                   </p>
+                  {app.status === 'pending' && (
+                    <div className="flex gap-2 mt-4">
+                      <Button onClick={() => onApprove?.(app.id)} size="sm" variant="default">
+                        <Icon name="Check" size={16} className="mr-1" />
+                        Одобрить
+                      </Button>
+                      <Button onClick={() => onReject?.(app.id)} size="sm" variant="destructive">
+                        <Icon name="X" size={16} className="mr-1" />
+                        Отклонить
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

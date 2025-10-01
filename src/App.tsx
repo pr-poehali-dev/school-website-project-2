@@ -218,6 +218,40 @@ function App() {
     }
   };
 
+  const handleApproveApplication = async (id: number) => {
+    try {
+      const response = await fetch(API_URLS.applications, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({ title: 'Заявка одобрена' });
+        loadApplications();
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось одобрить заявку', variant: 'destructive' });
+    }
+  };
+
+  const handleRejectApplication = async (id: number) => {
+    try {
+      const response = await fetch(API_URLS.applications, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'rejected' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({ title: 'Заявка отклонена' });
+        loadApplications();
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось отклонить заявку', variant: 'destructive' });
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -265,6 +299,8 @@ function App() {
             applications={applications}
             isAdmin={user?.role === 'admin'}
             onSubmit={handleApplicationSubmit}
+            onApprove={handleApproveApplication}
+            onReject={handleRejectApplication}
           />
         )}
 
