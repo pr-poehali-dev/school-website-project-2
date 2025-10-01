@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Submit application",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "full_name": "Иван Петров",
+        "email": "ivan@example.com",
+        "phone": "+79001234567",
+        "message": "Хочу вступить в клуб"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

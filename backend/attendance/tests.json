@@ -1,0 +1,15 @@
+{
+  "tests": [
+    {
+      "name": "Get attendance for today",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "date": "string",
+        "attendance": []
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
