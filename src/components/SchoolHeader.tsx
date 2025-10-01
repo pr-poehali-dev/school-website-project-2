@@ -37,9 +37,14 @@ const SchoolHeader = ({ user, onNavigate, onLogout, onOpenAuth }: SchoolHeaderPr
               Новости
             </button>
             {user?.role === 'admin' && (
-              <button onClick={() => onNavigate('attendance')} className="text-foreground hover:text-primary transition-colors">
-                Посещаемость
-              </button>
+              <>
+                <button onClick={() => onNavigate('attendance')} className="text-foreground hover:text-primary transition-colors">
+                  Посещаемость
+                </button>
+                <button onClick={() => onNavigate('members')} className="text-foreground hover:text-primary transition-colors">
+                  Участники
+                </button>
+              </>
             )}
             <button onClick={() => onNavigate('contacts')} className="text-foreground hover:text-primary transition-colors">
               Контакты

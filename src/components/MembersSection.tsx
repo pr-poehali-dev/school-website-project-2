@@ -1,0 +1,73 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import Icon from '@/components/ui/icon';
+
+interface Member {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  created_at: string;
+}
+
+interface MembersSectionProps {
+  members: Member[];
+  onRemoveMember: (id: number) => void;
+}
+
+const MembersSection = ({ members, onRemoveMember }: MembersSectionProps) => {
+  return (
+    <div className="max-w-4xl mx-auto animate-fade-in">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-3xl flex items-center gap-2">
+            <Icon name="Users" className="text-primary" />
+            Управление участниками
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {members.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Нет участников</p>
+          ) : (
+            <div className="space-y-4">
+              {members.map((member) => (
+                <div key={member.id} className="border rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
+                      <Icon name="User" className="text-white" size={24} />
+                    </div>
+                    <div>
+                      <p className="font-medium">{member.full_name}</p>
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Присоединился: {new Date(member.created_at).toLocaleDateString('ru')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                      {member.role === 'admin' ? 'Администратор' : 'Участник'}
+                    </Badge>
+                    {member.role !== 'admin' && (
+                      <Button
+                        onClick={() => onRemoveMember(member.id)}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        <Icon name="UserX" size={16} className="mr-1" />
+                        Исключить
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default MembersSection;

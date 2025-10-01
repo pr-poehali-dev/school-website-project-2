@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Get members list as admin",
+      "method": "GET",
+      "path": "/",
+      "headers": {
+        "X-User-Role": "admin"
+      },
+      "expectedStatus": 200
+    }
+  ]
+}
