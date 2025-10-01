@@ -1,5 +1,5 @@
 '''
-Business: Управление заявками на вступление в клуб
+Business: Управление заявками на вступление в клуб с email уведомлениями
 Args: event с httpMethod, body, headers; context с request_id
 Returns: HTTP response со списком заявок или статусом создания
 '''
@@ -9,9 +9,36 @@ import os
 from typing import Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 def get_db_connection():
     return psycopg2.connect(os.environ['DATABASE_URL'])
+
+def send_email(to_email: str, subject: str, body: str):
+    try:
+        smtp_host = os.environ.get('SMTP_HOST')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_user = os.environ.get('SMTP_USER')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        
+        if not all([smtp_host, smtp_user, smtp_password]):
+            return
+        
+        msg = MIMEMultipart('alternative')
+        msg['From'] = smtp_user
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(body, 'html', 'utf-8'))
+        
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+    except Exception as e:
+        print(f"Email error: {e}")
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'GET')
@@ -76,10 +103,52 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             status = body.get('status')
             
             cursor.execute(
+                "SELECT full_name, email FROM applications WHERE id = %s",
+                (app_id,)
+            )
+            app = cursor.fetchone()
+            
+            cursor.execute(
                 "UPDATE applications SET status = %s WHERE id = %s",
                 (status, app_id)
             )
             conn.commit()
+            
+            if app and app['email']:
+                if status == 'approved':
+                    subject = '✅ Ваша заявка одобрена!'
+                    body_html = f'''
+                    <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <h2 style="color: #4CAF50;">Здравствуйте, {app['full_name']}!</h2>
+                            <p>Рады сообщить, что ваша заявка на вступление в школьный клуб была <strong>одобрена</strong>!</p>
+                            <p>Добро пожаловать в нашу команду! Мы свяжемся с вами в ближайшее время для обсуждения деталей.</p>
+                            <p>С уважением,<br>Команда школьного клуба</p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                            <p style="font-size: 12px; color: #999;">Контакты: sashafetisov2010@ro.ru | +7 (901) 551-02-28</p>
+                        </body>
+                    </html>
+                    '''
+                elif status == 'rejected':
+                    subject = 'Ваша заявка на рассмотрении'
+                    body_html = f'''
+                    <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <h2>Здравствуйте, {app['full_name']}!</h2>
+                            <p>Благодарим за интерес к нашему школьному клубу.</p>
+                            <p>К сожалению, на данный момент мы не можем принять вашу заявку.</p>
+                            <p>Вы можете попробовать подать заявку позже или связаться с нами для уточнения деталей.</p>
+                            <p>С уважением,<br>Команда школьного клуба</p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                            <p style="font-size: 12px; color: #999;">Контакты: sashafetisov2010@ro.ru | +7 (901) 551-02-28</p>
+                        </body>
+                    </html>
+                    '''
+                else:
+                    subject = None
+                
+                if subject:
+                    send_email(app['email'], subject, body_html)
             
             return {
                 'statusCode': 200,
