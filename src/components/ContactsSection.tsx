@@ -36,7 +36,7 @@ const ContactsSection = () => {
             </div>
             <div>
               <p className="font-medium">Адрес</p>
-              <p className="text-muted-foreground">г. Москва, ул. Школьная, д. 1</p>
+              <p className="text-muted-foreground">ул. Московская, д. 48</p>
             </div>
           </div>
         </CardContent>
