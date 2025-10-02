@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Icon from '@/components/ui/icon';
 
 interface Grade {
@@ -158,6 +159,37 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
 
   const categoryStats = calculateCategoryStats();
 
+  const prepareChartData = () => {
+    const sortedGrades = [...grades].sort((a, b) => 
+      new Date(a.graded_at).getTime() - new Date(b.graded_at).getTime()
+    );
+
+    return sortedGrades.map((grade, index) => ({
+      date: new Date(grade.graded_at).toLocaleDateString('ru-RU', { 
+        day: '2-digit', 
+        month: '2-digit' 
+      }),
+      score: grade.score,
+      category: grade.category,
+      index: index + 1
+    }));
+  };
+
+  const chartData = prepareChartData();
+
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'Техника': '#8b5cf6',
+      'Физическая подготовка': '#ec4899',
+      'Теория': '#3b82f6',
+      'Дисциплина': '#10b981',
+      'Посещаемость': '#f59e0b',
+      'Спарринг': '#ef4444',
+      'Экзамен': '#6366f1'
+    };
+    return colors[category] || '#6b7280';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
@@ -178,6 +210,53 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
                 </div>
                 <Icon name="Award" size={48} className="text-primary" />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Icon name="TrendingUp" size={20} />
+                График прогресса
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis 
+                    domain={[0, 100]} 
+                    style={{ fontSize: '12px' }}
+                  />
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border rounded-lg shadow-lg">
+                            <p className="font-semibold">{data.category}</p>
+                            <p className="text-sm text-muted-foreground">{data.date}</p>
+                            <p className="text-lg font-bold mt-1">Оценка: {data.score}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#8b5cf6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#8b5cf6', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
