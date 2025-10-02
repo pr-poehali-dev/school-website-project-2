@@ -135,9 +135,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps([dict(record) for record in history], default=str)
                 }
             else:
-                cursor.execute(
-                    "SELECT id, email, full_name, role, created_at FROM users ORDER BY created_at DESC"
-                )
+                show_deleted = query_params.get('show_deleted') == 'true'
+                
+                if show_deleted:
+                    cursor.execute(
+                        "SELECT id, email, full_name, role, created_at, is_active FROM users WHERE is_active = FALSE ORDER BY created_at DESC"
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT id, email, full_name, role, created_at, is_active FROM users WHERE is_active = TRUE ORDER BY created_at DESC"
+                    )
                 members = cursor.fetchall()
                 
                 return {
@@ -196,7 +203,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}'))
             action = body.get('action')
             
-            if action == 'add_grade':
+            if action == 'restore_user':
+                user_id = body.get('user_id')
+                
+                if not user_id:
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'User ID required'})
+                    }
+                
+                cursor.execute(
+                    "UPDATE users SET is_active = TRUE WHERE id = %s",
+                    (user_id,)
+                )
+                conn.commit()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': True})
+                }
+            
+            elif action == 'add_grade':
                 user_id = body.get('user_id')
                 category = body.get('category')
                 score = body.get('score')
@@ -247,7 +276,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cursor.execute(
-                "SELECT role FROM users WHERE id = %s",
+                "SELECT role, is_active FROM users WHERE id = %s",
                 (user_id,)
             )
             user = cursor.fetchone()
@@ -260,7 +289,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cursor.execute(
-                "DELETE FROM users WHERE id = %s",
+                "UPDATE users SET is_active = FALSE WHERE id = %s",
                 (user_id,)
             )
             conn.commit()

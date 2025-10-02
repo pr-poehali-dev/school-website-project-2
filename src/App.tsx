@@ -10,6 +10,7 @@ import ApplicationSection from '@/components/ApplicationSection';
 import ContactsSection from '@/components/ContactsSection';
 import MembersSection from '@/components/MembersSection';
 import RoleHistorySection from '@/components/RoleHistorySection';
+import DeletedMembersSection from '@/components/DeletedMembersSection';
 import GradesSection from '@/components/GradesSection';
 import SchoolFooter from '@/components/SchoolFooter';
 
@@ -78,6 +79,7 @@ function App() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [members, setMembers] = useState<User[]>([]);
+  const [deletedMembers, setDeletedMembers] = useState<User[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryRecord[]>([]);
   const { toast } = useToast();
 
@@ -99,6 +101,7 @@ function App() {
     }
     if (activeSection === 'members' && user?.role === 'admin') {
       loadMembers();
+      loadDeletedMembers();
       loadRoleHistory();
     }
   }, [activeSection, attendanceDate, user]);
@@ -311,6 +314,18 @@ function App() {
     }
   };
 
+  const loadDeletedMembers = async () => {
+    try {
+      const response = await fetch(`${API_URLS.members}?show_deleted=true`, {
+        headers: { 'X-User-Role': 'admin' }
+      });
+      const data = await response.json();
+      setDeletedMembers(data);
+    } catch (error) {
+      console.error('Ошибка загрузки удалённых участников:', error);
+    }
+  };
+
   const loadRoleHistory = async () => {
     try {
       const response = await fetch(`${API_URLS.members}?history=true`, {
@@ -327,7 +342,7 @@ function App() {
     const member = members.find(m => m.id === id);
     const memberName = member?.full_name || 'этого участника';
     
-    if (!confirm(`Вы уверены, что хотите исключить ${memberName}? Это действие нельзя отменить.`)) return;
+    if (!confirm(`Вы уверены, что хотите исключить ${memberName}? Участника можно будет восстановить позже.`)) return;
     
     try {
       const response = await fetch(`${API_URLS.members}?id=${id}`, {
@@ -336,13 +351,40 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
-        toast({ title: 'Участник исключён', description: `${memberName} удалён из системы` });
+        toast({ title: 'Участник исключён', description: `${memberName} перемещён в архив. Вы можете восстановить участника.` });
         loadMembers();
+        loadDeletedMembers();
       } else {
         toast({ title: 'Ошибка', description: data.error || 'Не удалось исключить участника', variant: 'destructive' });
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось исключить участника', variant: 'destructive' });
+    }
+  };
+
+  const handleRestoreMember = async (id: number) => {
+    const member = deletedMembers.find(m => m.id === id);
+    const memberName = member?.full_name || 'участника';
+    
+    try {
+      const response = await fetch(API_URLS.members, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': 'admin'
+        },
+        body: JSON.stringify({ action: 'restore_user', user_id: id })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({ title: 'Участник восстановлен', description: `${memberName} снова активен в системе` });
+        loadMembers();
+        loadDeletedMembers();
+      } else {
+        toast({ title: 'Ошибка', description: 'Не удалось восстановить участника', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось восстановить участника', variant: 'destructive' });
     }
   };
 
@@ -455,6 +497,10 @@ function App() {
               onRemoveMember={handleRemoveMember}
               onPromoteToAdmin={handlePromoteToAdmin}
               onDemoteToMember={handleDemoteToMember}
+            />
+            <DeletedMembersSection
+              deletedMembers={deletedMembers}
+              onRestoreMember={handleRestoreMember}
             />
             <RoleHistorySection history={roleHistory} />
           </>

@@ -1,0 +1,1 @@
+UPDATE t_p84683043_school_website_proje.users SET is_active = TRUE WHERE is_active IS NULL;

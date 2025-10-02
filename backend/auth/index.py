@@ -74,12 +74,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 password = body.get('password')
                 
                 cursor.execute(
-                    "SELECT id, email, full_name, role FROM users WHERE email = %s AND password_hash = %s",
+                    "SELECT id, email, full_name, role, is_active FROM users WHERE email = %s AND password_hash = %s",
                     (email, hash_password(password))
                 )
                 user = cursor.fetchone()
                 
-                if user:
+                if user and user.get('is_active', True):
                     token = generate_token()
                     return {
                         'statusCode': 200,
