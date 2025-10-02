@@ -324,7 +324,10 @@ function App() {
   };
 
   const handleRemoveMember = async (id: number) => {
-    if (!confirm('Вы уверены, что хотите исключить этого участника?')) return;
+    const member = members.find(m => m.id === id);
+    const memberName = member?.full_name || 'этого участника';
+    
+    if (!confirm(`Вы уверены, что хотите исключить ${memberName}? Это действие нельзя отменить.`)) return;
     
     try {
       const response = await fetch(`${API_URLS.members}?id=${id}`, {
@@ -333,8 +336,10 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
-        toast({ title: 'Участник исключён' });
+        toast({ title: 'Участник исключён', description: `${memberName} удалён из системы` });
         loadMembers();
+      } else {
+        toast({ title: 'Ошибка', description: data.error || 'Не удалось исключить участника', variant: 'destructive' });
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось исключить участника', variant: 'destructive' });
