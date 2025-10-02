@@ -138,6 +138,26 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
     return Math.round(sum / grades.length);
   };
 
+  const calculateCategoryStats = () => {
+    const stats: { [key: string]: { total: number; count: number; avg: number } } = {};
+    
+    grades.forEach(grade => {
+      if (!stats[grade.category]) {
+        stats[grade.category] = { total: 0, count: 0, avg: 0 };
+      }
+      stats[grade.category].total += grade.score;
+      stats[grade.category].count += 1;
+    });
+
+    Object.keys(stats).forEach(category => {
+      stats[category].avg = Math.round(stats[category].total / stats[category].count);
+    });
+
+    return stats;
+  };
+
+  const categoryStats = calculateCategoryStats();
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
@@ -148,43 +168,99 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
       </div>
 
       {user.role === 'member' && grades.length > 0 && (
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Средний балл</p>
-                <p className="text-4xl font-bold">{calculateAverage()}</p>
+        <>
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Средний балл</p>
+                  <p className="text-4xl font-bold">{calculateAverage()}</p>
+                </div>
+                <Icon name="Award" size={48} className="text-primary" />
               </div>
-              <Icon name="Award" size={48} className="text-primary" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Icon name="BarChart3" size={20} />
+                Статистика по категориям
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(categoryStats).map(([category, stats]) => (
+                  <div key={category} className="p-4 rounded-lg border bg-card">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-sm font-medium">{category}</p>
+                      <span className={`text-lg font-bold px-2 py-1 rounded ${getScoreColor(stats.avg)}`}>
+                        {stats.avg}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.count} {stats.count === 1 ? 'оценка' : stats.count < 5 ? 'оценки' : 'оценок'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {user.role === 'admin' && (
-        <div className="mb-6 flex gap-4 flex-wrap items-center">
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'all' ? 'default' : 'outline'}
-              onClick={() => setViewMode('all')}
-            >
-              <Icon name="Users" size={16} className="mr-2" />
-              Все оценки
-            </Button>
-            <Button
-              variant={viewMode === 'my' ? 'default' : 'outline'}
-              onClick={() => setViewMode('my')}
-            >
-              <Icon name="User" size={16} className="mr-2" />
-              Мои оценки
+        <>
+          {viewMode === 'all' && Object.keys(categoryStats).length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon name="TrendingUp" size={20} />
+                  Общая статистика по категориям
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {Object.entries(categoryStats).map(([category, stats]) => (
+                    <div key={category} className="text-center p-3 rounded-lg border bg-card">
+                      <p className={`text-2xl font-bold mb-1 ${getScoreColor(stats.avg).split(' ')[0]}`}>
+                        {stats.avg}
+                      </p>
+                      <p className="text-xs font-medium mb-1">{category}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.count} {stats.count === 1 ? 'оценка' : stats.count < 5 ? 'оценки' : 'оценок'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="mb-6 flex gap-4 flex-wrap items-center">
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'all' ? 'default' : 'outline'}
+                onClick={() => setViewMode('all')}
+              >
+                <Icon name="Users" size={16} className="mr-2" />
+                Все оценки
+              </Button>
+              <Button
+                variant={viewMode === 'my' ? 'default' : 'outline'}
+                onClick={() => setViewMode('my')}
+              >
+                <Icon name="User" size={16} className="mr-2" />
+                Мои оценки
+              </Button>
+            </div>
+            
+            <Button onClick={() => setIsAddingGrade(!isAddingGrade)} className="ml-auto">
+              <Icon name={isAddingGrade ? 'X' : 'Plus'} size={16} className="mr-2" />
+              {isAddingGrade ? 'Отменить' : 'Добавить оценку'}
             </Button>
           </div>
-          
-          <Button onClick={() => setIsAddingGrade(!isAddingGrade)} className="ml-auto">
-            <Icon name={isAddingGrade ? 'X' : 'Plus'} size={16} className="mr-2" />
-            {isAddingGrade ? 'Отменить' : 'Добавить оценку'}
-          </Button>
-        </div>
+        </>
       )}
 
       {isAddingGrade && user.role === 'admin' && (
