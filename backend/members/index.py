@@ -21,8 +21,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, X-User-Role',
+                'Access-Control-Allow-Methods': 'GET, PUT, DELETE, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, X-User-Role, X-User-Id',
                 'Access-Control-Max-Age': '86400'
             },
             'body': ''
@@ -45,7 +45,42 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if method == 'GET':
             query_params = event.get('queryStringParameters', {}) or {}
             
-            if query_params.get('history') == 'true':
+            if query_params.get('grades') == 'true':
+                user_id = query_params.get('user_id')
+                
+                if user_id:
+                    cursor.execute(
+                        """
+                        SELECT g.id, g.user_id, g.category, g.score, g.comment, 
+                               g.graded_at, u.full_name as graded_by_name
+                        FROM grades g
+                        LEFT JOIN users u ON g.graded_by = u.id
+                        WHERE g.user_id = %s
+                        ORDER BY g.graded_at DESC
+                        """,
+                        (user_id,)
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT g.id, g.user_id, g.category, g.score, g.comment, 
+                               g.graded_at, u1.full_name as user_name, u2.full_name as graded_by_name
+                        FROM grades g
+                        LEFT JOIN users u1 ON g.user_id = u1.id
+                        LEFT JOIN users u2 ON g.graded_by = u2.id
+                        ORDER BY g.graded_at DESC
+                        """
+                    )
+                
+                grades = cursor.fetchall()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps([dict(record) for record in grades], default=str)
+                }
+            
+            elif query_params.get('history') == 'true':
                 user_id = query_params.get('user_id')
                 
                 if user_id:
@@ -155,6 +190,49 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'statusCode': 200,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
                 'body': json.dumps({'success': True})
+            }
+        
+        elif method == 'POST':
+            body = json.loads(event.get('body', '{}'))
+            action = body.get('action')
+            
+            if action == 'add_grade':
+                user_id = body.get('user_id')
+                category = body.get('category')
+                score = body.get('score')
+                comment = body.get('comment', '')
+                graded_by = int(headers.get('x-user-id', headers.get('X-User-Id', 0)))
+                
+                if not all([user_id, category, score is not None]):
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Missing required fields'})
+                    }
+                
+                cursor.execute(
+                    """
+                    INSERT INTO grades 
+                    (user_id, category, score, comment, graded_by)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (user_id, category, score, comment, graded_by)
+                )
+                
+                grade_id = cursor.fetchone()['id']
+                conn.commit()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': True, 'id': grade_id})
+                }
+            
+            return {
+                'statusCode': 400,
+                'headers': {'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'error': 'Invalid action'})
             }
         
         elif method == 'DELETE':

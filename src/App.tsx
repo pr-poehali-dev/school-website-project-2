@@ -10,6 +10,7 @@ import ApplicationSection from '@/components/ApplicationSection';
 import ContactsSection from '@/components/ContactsSection';
 import MembersSection from '@/components/MembersSection';
 import RoleHistorySection from '@/components/RoleHistorySection';
+import GradesSection from '@/components/GradesSection';
 import SchoolFooter from '@/components/SchoolFooter';
 
 const API_URLS = {
@@ -452,6 +453,14 @@ function App() {
             />
             <RoleHistorySection history={roleHistory} />
           </>
+        )}
+
+        {activeSection === 'grades' && user && (
+          <GradesSection
+            user={user}
+            apiUrl={API_URLS.members}
+            onGradeAdded={() => toast({ title: 'Оценка добавлена!' })}
+          />
         )}
 
         {activeSection === 'contacts' && <ContactsSection />}
