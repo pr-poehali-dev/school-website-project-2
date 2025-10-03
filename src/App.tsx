@@ -14,86 +14,41 @@ import DeletedMembersSection from '@/components/DeletedMembersSection';
 import GradesSection from '@/components/GradesSection';
 import MemberGradesModal from '@/components/MemberGradesModal';
 import SchoolFooter from '@/components/SchoolFooter';
-
-const API_URLS = {
-  auth: 'https://functions.poehali.dev/a056130a-20c0-4b35-827b-30e2d6a56a84',
-  applications: 'https://functions.poehali.dev/d850ccdf-cc95-4cc6-a01a-ec3e479b3384',
-  news: 'https://functions.poehali.dev/679d9f94-3b9e-446a-9587-43a330e48688',
-  attendance: 'https://functions.poehali.dev/d2c26821-fa04-492f-9f68-d1903cb00009',
-  members: 'https://functions.poehali.dev/a70ff833-b468-4226-a121-9cbb3519504c'
-};
-
-interface User {
-  id: number;
-  email: string;
-  full_name: string;
-  role: string;
-}
-
-interface NewsItem {
-  id: number;
-  title: string;
-  content: string;
-  author_name: string;
-  image_url?: string;
-  video_url?: string;
-  created_at: string;
-}
-
-interface Application {
-  id: number;
-  full_name: string;
-  email: string;
-  phone: string;
-  message: string;
-  status: string;
-  created_at: string;
-}
-
-interface AttendanceRecord {
-  id: number;
-  full_name: string;
-  email: string;
-  present: boolean;
-  notes: string;
-}
-
-interface RoleHistoryRecord {
-  id: number;
-  user_id: number;
-  user_name: string;
-  user_email: string;
-  old_role: string;
-  new_role: string;
-  changed_by_admin_id: number | null;
-  admin_name: string | null;
-  changed_at: string;
-  reason: string | null;
-}
+import { useAuth } from '@/hooks/useAuth';
+import { useNews } from '@/hooks/useNews';
+import { useApplications } from '@/hooks/useApplications';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useMembers } from '@/hooks/useMembers';
+import { API_URLS } from '@/config/api';
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
   const [activeSection, setActiveSection] = useState('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [members, setMembers] = useState<User[]>([]);
-  const [deletedMembers, setDeletedMembers] = useState<User[]>([]);
-  const [roleHistory, setRoleHistory] = useState<RoleHistoryRecord[]>([]);
   const [selectedMember, setSelectedMember] = useState<{ id: number; name: string } | null>(null);
   const { toast } = useToast();
 
+  const { user, handleLogin, handleRegister, handleLogout, loadUserFromStorage } = useAuth();
+  const { news, loadNews, handleCreateNews } = useNews();
+  const { applications, loadApplications, handleApplicationSubmit, handleApproveApplication, handleRejectApplication } = useApplications();
+  const { attendance, attendanceDate, setAttendanceDate, loadAttendance, handleAttendanceToggle } = useAttendance();
+  const { 
+    members, 
+    deletedMembers, 
+    roleHistory, 
+    loadMembers, 
+    loadDeletedMembers, 
+    loadRoleHistory,
+    handleRemoveMember,
+    handleRestoreMember,
+    handlePromoteToAdmin,
+    handleDemoteToMember
+  } = useMembers();
+
   useEffect(() => {
     loadNews();
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      if (userData.role === 'admin') {
-        loadApplications();
-      }
+    const userData = loadUserFromStorage();
+    if (userData?.role === 'admin') {
+      loadApplications();
     }
   }, []);
 
@@ -108,344 +63,40 @@ function App() {
     }
   }, [activeSection, attendanceDate, user]);
 
-  const loadNews = async () => {
-    try {
-      const response = await fetch(API_URLS.news);
-      const data = await response.json();
-      setNews(data);
-    } catch (error) {
-      console.error('Ошибка загрузки новостей:', error);
+  const onLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    const result = await handleLogin(e);
+    if (result.success) {
+      setIsAuthModalOpen(false);
+      if (result.user?.role === 'admin') loadApplications();
     }
   };
 
-  const loadApplications = async () => {
-    try {
-      const response = await fetch(API_URLS.applications, {
-        headers: { 'X-User-Role': 'admin' }
-      });
-      const data = await response.json();
-      setApplications(data);
-    } catch (error) {
-      console.error('Ошибка загрузки заявок:', error);
+  const onRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    const result = await handleRegister(e);
+    if (result.success) {
+      setIsAuthModalOpen(false);
     }
   };
 
-  const loadAttendance = async () => {
-    try {
-      const response = await fetch(`${API_URLS.attendance}?date=${attendanceDate}`);
-      const data = await response.json();
-      setAttendance(data.attendance || []);
-    } catch (error) {
-      console.error('Ошибка загрузки посещаемости:', error);
-    }
+  const onLogout = () => {
+    handleLogout();
+    setActiveSection('home');
   };
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    try {
-      const response = await fetch(API_URLS.auth, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'login',
-          email: formData.get('email'),
-          password: formData.get('password')
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
-        toast({ title: 'Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}` });
-        setIsAuthModalOpen(false);
-        if (data.user.role === 'admin') loadApplications();
-      } else {
-        toast({ title: 'Ошибка', description: data.error, variant: 'destructive' });
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось войти', variant: 'destructive' });
-    }
+  const onCreateNews = (newsData: { title: string; content: string; image_url?: string; video_url?: string }) => {
+    handleCreateNews(newsData, user?.id);
   };
 
-  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    try {
-      const response = await fetch(API_URLS.auth, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          email: formData.get('email'),
-          password: formData.get('password'),
-          full_name: formData.get('full_name')
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
-        toast({ title: 'Регистрация успешна!', description: 'Добро пожаловать в клуб!' });
-        setIsAuthModalOpen(false);
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось зарегистрироваться', variant: 'destructive' });
-    }
+  const onPromoteToAdmin = (id: number) => {
+    handlePromoteToAdmin(id, user?.id);
   };
 
-  const handleApplicationSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    try {
-      const response = await fetch(API_URLS.applications, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: formData.get('full_name'),
-          email: formData.get('email'),
-          phone: formData.get('phone'),
-          message: formData.get('message')
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({ title: 'Заявка отправлена!', description: 'Мы свяжемся с вами в ближайшее время' });
-        e.currentTarget.reset();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось отправить заявку', variant: 'destructive' });
-    }
-  };
-
-  const handleAttendanceToggle = async (userId: number, present: boolean) => {
-    try {
-      await fetch(API_URLS.attendance, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          date: attendanceDate,
-          present
-        })
-      });
-      loadAttendance();
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось обновить посещаемость', variant: 'destructive' });
-    }
-  };
-
-  const handleApproveApplication = async (id: number) => {
-    try {
-      const response = await fetch(API_URLS.applications, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'approved' })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Заявка одобрена' });
-        loadApplications();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось одобрить заявку', variant: 'destructive' });
-    }
-  };
-
-  const handleRejectApplication = async (id: number) => {
-    try {
-      const response = await fetch(API_URLS.applications, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'rejected' })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Заявка отклонена' });
-        loadApplications();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось отклонить заявку', variant: 'destructive' });
-    }
-  };
-
-  const handleCreateNews = async (newsData: { title: string; content: string; image_url?: string; video_url?: string }) => {
-    if (!user) return;
-    
-    try {
-      const response = await fetch(API_URLS.news, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-User-Id': user.id.toString()
-        },
-        body: JSON.stringify(newsData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({ title: 'Новость опубликована!' });
-        loadNews();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось опубликовать новость', variant: 'destructive' });
-    }
-  };
-
-  const loadMembers = async () => {
-    try {
-      const response = await fetch(API_URLS.members, {
-        headers: { 'X-User-Role': 'admin' }
-      });
-      const data = await response.json();
-      setMembers(data);
-    } catch (error) {
-      console.error('Ошибка загрузки участников:', error);
-    }
-  };
-
-  const loadDeletedMembers = async () => {
-    try {
-      const response = await fetch(`${API_URLS.members}?show_deleted=true`, {
-        headers: { 'X-User-Role': 'admin' }
-      });
-      const data = await response.json();
-      setDeletedMembers(data);
-    } catch (error) {
-      console.error('Ошибка загрузки удалённых участников:', error);
-    }
-  };
-
-  const loadRoleHistory = async () => {
-    try {
-      const response = await fetch(`${API_URLS.members}?history=true`, {
-        headers: { 'X-User-Role': 'admin' }
-      });
-      const data = await response.json();
-      setRoleHistory(data);
-    } catch (error) {
-      console.error('Ошибка загрузки истории:', error);
-    }
-  };
-
-  const handleRemoveMember = async (id: number) => {
-    const member = members.find(m => m.id === id);
-    const memberName = member?.full_name || 'этого участника';
-    
-    if (!confirm(`Вы уверены, что хотите исключить ${memberName}? Участника можно будет восстановить позже.`)) return;
-    
-    try {
-      const response = await fetch(`${API_URLS.members}?id=${id}`, {
-        method: 'DELETE',
-        headers: { 'X-User-Role': 'admin' }
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Участник исключён', description: `${memberName} перемещён в архив. Вы можете восстановить участника.` });
-        loadMembers();
-        loadDeletedMembers();
-      } else {
-        toast({ title: 'Ошибка', description: data.error || 'Не удалось исключить участника', variant: 'destructive' });
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось исключить участника', variant: 'destructive' });
-    }
-  };
-
-  const handleRestoreMember = async (id: number) => {
-    const member = deletedMembers.find(m => m.id === id);
-    const memberName = member?.full_name || 'участника';
-    
-    try {
-      const response = await fetch(API_URLS.members, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Role': 'admin'
-        },
-        body: JSON.stringify({ action: 'restore_user', user_id: id })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Участник восстановлен', description: `${memberName} снова активен в системе` });
-        loadMembers();
-        loadDeletedMembers();
-      } else {
-        toast({ title: 'Ошибка', description: 'Не удалось восстановить участника', variant: 'destructive' });
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось восстановить участника', variant: 'destructive' });
-    }
-  };
-
-  const handlePromoteToAdmin = async (id: number) => {
-    if (!confirm('Вы уверены, что хотите назначить этого пользователя администратором?')) return;
-    
-    try {
-      const response = await fetch(API_URLS.members, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-User-Role': 'admin' 
-        },
-        body: JSON.stringify({ id, role: 'admin', admin_id: user?.id })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Пользователь назначен администратором' });
-        loadMembers();
-        loadRoleHistory();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
-    }
-  };
-
-  const handleDemoteToMember = async (id: number) => {
-    if (!confirm('Вы уверены, что хотите снять права администратора?')) return;
-    
-    try {
-      const response = await fetch(API_URLS.members, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-User-Role': 'admin' 
-        },
-        body: JSON.stringify({ id, role: 'member', admin_id: user?.id })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast({ title: 'Права администратора сняты' });
-        loadMembers();
-        loadRoleHistory();
-      }
-    } catch (error) {
-      toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
-    }
+  const onDemoteToMember = (id: number) => {
+    handleDemoteToMember(id, user?.id);
   };
 
   const handleViewGrades = (id: number, name: string) => {
     setSelectedMember({ id, name });
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setActiveSection('home');
-    toast({ title: 'Выход выполнен' });
   };
 
   return (
@@ -453,15 +104,15 @@ function App() {
       <SchoolHeader
         user={user}
         onNavigate={setActiveSection}
-        onLogout={handleLogout}
+        onLogout={onLogout}
         onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
+        onLogin={onLogin}
+        onRegister={onRegister}
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -473,7 +124,7 @@ function App() {
           <NewsListSection 
             news={news} 
             isAdmin={user?.role === 'admin'} 
-            onCreateNews={handleCreateNews}
+            onCreateNews={onCreateNews}
           />
         )}
 
@@ -501,8 +152,8 @@ function App() {
             <MembersSection
               members={members}
               onRemoveMember={handleRemoveMember}
-              onPromoteToAdmin={handlePromoteToAdmin}
-              onDemoteToMember={handleDemoteToMember}
+              onPromoteToAdmin={onPromoteToAdmin}
+              onDemoteToMember={onDemoteToMember}
               onViewGrades={handleViewGrades}
             />
             <DeletedMembersSection
