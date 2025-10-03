@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 
 interface Grade {
@@ -16,9 +17,10 @@ interface GradesListProps {
   grades: Grade[];
   getScoreColor: (score: number) => string;
   userRole: string;
+  onDeleteGrade?: (gradeId: number) => void;
 }
 
-export default function GradesList({ grades, getScoreColor, userRole }: GradesListProps) {
+export default function GradesList({ grades, getScoreColor, userRole, onDeleteGrade }: GradesListProps) {
   if (grades.length === 0) {
     return (
       <Card>
@@ -64,8 +66,25 @@ export default function GradesList({ grades, getScoreColor, userRole }: GradesLi
                 </div>
               </div>
               
-              <div className={`text-3xl font-bold px-4 py-2 rounded-lg ${getScoreColor(grade.score)}`}>
-                {grade.score}
+              <div className="flex items-center gap-2">
+                <div className={`text-3xl font-bold px-4 py-2 rounded-lg ${getScoreColor(grade.score)}`}>
+                  {grade.score}
+                </div>
+                
+                {userRole === 'admin' && onDeleteGrade && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (confirm('Удалить эту оценку?')) {
+                        onDeleteGrade(grade.id);
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Icon name="Trash2" size={20} />
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

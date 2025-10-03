@@ -282,6 +282,30 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         elif method == 'DELETE':
             query_params = event.get('queryStringParameters', {}) or {}
+            body = json.loads(event.get('body', '{}')) if event.get('body') else {}
+            
+            if body.get('action') == 'delete_grade':
+                grade_id = body.get('grade_id')
+                
+                if not grade_id:
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Grade ID required'})
+                    }
+                
+                cursor.execute(
+                    "DELETE FROM grades WHERE id = %s",
+                    (grade_id,)
+                )
+                conn.commit()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': True})
+                }
+            
             user_id = query_params.get('id')
             
             if not user_id:

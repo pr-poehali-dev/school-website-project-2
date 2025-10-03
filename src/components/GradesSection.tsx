@@ -126,6 +126,30 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
     }
   };
 
+  const handleDeleteGrade = async (gradeId: number) => {
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': 'admin'
+        },
+        body: JSON.stringify({
+          action: 'delete_grade',
+          grade_id: gradeId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        loadGrades();
+      }
+    } catch (error) {
+      console.error('Ошибка удаления оценки:', error);
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 bg-green-50';
     if (score >= 75) return 'text-blue-600 bg-blue-50';
@@ -264,6 +288,7 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
         grades={grades}
         getScoreColor={getScoreColor}
         userRole={user.role}
+        onDeleteGrade={user.role === 'admin' ? handleDeleteGrade : undefined}
       />
     </div>
   );
