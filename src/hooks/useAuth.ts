@@ -78,6 +78,35 @@ export const useAuth = () => {
     toast({ title: 'Выход выполнен' });
   };
 
+  const handleTelegramLogin = async (telegramUser: any) => {
+    try {
+      const response = await fetch(API_URLS.auth, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'telegram_login',
+          ...telegramUser
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        toast({ title: 'Вход через Telegram выполнен!', description: `Добро пожаловать, ${data.user.full_name}` });
+        return { success: true, user: data.user };
+      } else {
+        toast({ title: 'Ошибка', description: data.error, variant: 'destructive' });
+        return { success: false };
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось войти через Telegram', variant: 'destructive' });
+      return { success: false };
+    }
+  };
+
   const loadUserFromStorage = () => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -93,6 +122,7 @@ export const useAuth = () => {
     setUser,
     handleLogin,
     handleRegister,
+    handleTelegramLogin,
     handleLogout,
     loadUserFromStorage
   };

@@ -27,7 +27,7 @@ function App() {
   const [selectedMember, setSelectedMember] = useState<{ id: number; name: string } | null>(null);
   const { toast } = useToast();
 
-  const { user, handleLogin, handleRegister, handleLogout, loadUserFromStorage } = useAuth();
+  const { user, handleLogin, handleRegister, handleTelegramLogin, handleLogout, loadUserFromStorage } = useAuth();
   const { news, loadNews, handleCreateNews } = useNews();
   const { applications, loadApplications, handleApplicationSubmit, handleApproveApplication, handleRejectApplication } = useApplications();
   const { attendance, attendanceDate, setAttendanceDate, loadAttendance, handleAttendanceToggle } = useAttendance();
@@ -96,6 +96,14 @@ function App() {
     }
   };
 
+  const onTelegramLogin = async (telegramUser: any) => {
+    const result = await handleTelegramLogin(telegramUser);
+    if (result.success) {
+      setIsAuthModalOpen(false);
+      if (result.user?.role === 'admin') loadApplications();
+    }
+  };
+
   const onLogout = () => {
     handleLogout();
     setActiveSection('home');
@@ -131,6 +139,7 @@ function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onLogin={onLogin}
         onRegister={onRegister}
+        onTelegramLogin={onTelegramLogin}
       />
 
       <main className="container mx-auto px-4 py-8">

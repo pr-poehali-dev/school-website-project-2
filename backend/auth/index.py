@@ -8,6 +8,7 @@ import json
 import os
 import hashlib
 import secrets
+import hmac
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import psycopg2
@@ -21,6 +22,19 @@ def hash_password(password: str) -> str:
 
 def generate_token() -> str:
     return secrets.token_urlsafe(32)
+
+def verify_telegram_auth(auth_data: Dict[str, Any], bot_token: str) -> bool:
+    check_hash = auth_data.get('hash')
+    if not check_hash:
+        return False
+    
+    auth_data_copy = {k: v for k, v in auth_data.items() if k != 'hash'}
+    data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(auth_data_copy.items()))
+    
+    secret_key = hashlib.sha256(bot_token.encode()).digest()
+    calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    
+    return calculated_hash == check_hash
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'GET')
@@ -95,6 +109,82 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'statusCode': 401,
                         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
                         'body': json.dumps({'success': False, 'error': 'Неверные данные'})
+                    }
+            
+            elif action == 'telegram_login':
+                bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+                if not bot_token:
+                    return {
+                        'statusCode': 500,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Bot token not configured'})
+                    }
+                
+                if not verify_telegram_auth(body, bot_token):
+                    return {
+                        'statusCode': 403,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Invalid authentication data'})
+                    }
+                
+                telegram_id = str(body.get('id'))
+                first_name = body.get('first_name', '')
+                last_name = body.get('last_name', '')
+                full_name = f"{first_name} {last_name}".strip()
+                
+                cursor.execute(
+                    "SELECT id, email, full_name, role, is_active FROM users WHERE telegram_id = %s",
+                    (telegram_id,)
+                )
+                user = cursor.fetchone()
+                
+                if user:
+                    if not user['is_active']:
+                        return {
+                            'statusCode': 403,
+                            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                            'body': json.dumps({'error': 'Account is deactivated'})
+                        }
+                    
+                    cursor.execute(
+                        "UPDATE users SET last_login = NOW() WHERE id = %s",
+                        (user['id'],)
+                    )
+                    conn.commit()
+                    
+                    token = generate_token()
+                    return {
+                        'statusCode': 200,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({
+                            'success': True,
+                            'token': token,
+                            'user': dict(user)
+                        })
+                    }
+                else:
+                    email = f"tg_{telegram_id}@telegram.user"
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO users (email, full_name, password_hash, role, telegram_id, is_active)
+                        VALUES (%s, %s, %s, %s, %s, TRUE)
+                        RETURNING id, email, full_name, role
+                        """,
+                        (email, full_name, '', 'member', telegram_id)
+                    )
+                    new_user = cursor.fetchone()
+                    conn.commit()
+                    
+                    token = generate_token()
+                    return {
+                        'statusCode': 200,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({
+                            'success': True,
+                            'token': token,
+                            'user': dict(new_user)
+                        })
                     }
         
         return {
