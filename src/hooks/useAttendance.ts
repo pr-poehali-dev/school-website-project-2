@@ -29,7 +29,7 @@ export const useAttendance = () => {
           present
         })
       });
-      loadAttendance();
+      await loadAttendance();
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось обновить посещаемость', variant: 'destructive' });
     }

@@ -85,8 +85,8 @@ export const useMembers = () => {
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Участник восстановлен', description: `${memberName} снова активен в системе` });
-        loadMembers();
-        loadDeletedMembers();
+        await loadMembers();
+        await loadDeletedMembers();
       } else {
         toast({ title: 'Ошибка', description: 'Не удалось восстановить участника', variant: 'destructive' });
       }
@@ -110,8 +110,8 @@ export const useMembers = () => {
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Пользователь назначен администратором' });
-        loadMembers();
-        loadRoleHistory();
+        await loadMembers();
+        await loadRoleHistory();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });
@@ -133,8 +133,8 @@ export const useMembers = () => {
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Права администратора сняты' });
-        loadMembers();
-        loadRoleHistory();
+        await loadMembers();
+        await loadRoleHistory();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось изменить роль', variant: 'destructive' });

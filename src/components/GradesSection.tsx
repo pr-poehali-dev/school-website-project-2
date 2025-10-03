@@ -56,6 +56,15 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
     if (user.role === 'admin') {
       loadMembers();
     }
+
+    const interval = setInterval(() => {
+      loadGrades();
+      if (user.role === 'admin') {
+        loadMembers();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [viewMode]);
 
   const loadGrades = async () => {
@@ -118,7 +127,7 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
         setCategory('');
         setScore('');
         setComment('');
-        loadGrades();
+        await loadGrades();
         onGradeAdded?.();
       }
     } catch (error) {
@@ -143,7 +152,7 @@ export default function GradesSection({ user, apiUrl, onGradeAdded }: GradesSect
       const data = await response.json();
       
       if (data.success) {
-        loadGrades();
+        await loadGrades();
       }
     } catch (error) {
       console.error('Ошибка удаления оценки:', error);

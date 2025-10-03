@@ -33,6 +33,9 @@ const MemberGradesModal = ({ isOpen, onClose, userId, userName, apiUrl }: Member
   useEffect(() => {
     if (isOpen && userId) {
       loadGrades();
+      
+      const interval = setInterval(loadGrades, 10000);
+      return () => clearInterval(interval);
     }
   }, [isOpen, userId]);
 

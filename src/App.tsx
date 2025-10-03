@@ -50,16 +50,34 @@ function App() {
     if (userData?.role === 'admin') {
       loadApplications();
     }
+
+    const newsInterval = setInterval(loadNews, 30000);
+    const appsInterval = userData?.role === 'admin' ? setInterval(loadApplications, 30000) : null;
+
+    return () => {
+      clearInterval(newsInterval);
+      if (appsInterval) clearInterval(appsInterval);
+    };
   }, []);
 
   useEffect(() => {
     if (activeSection === 'attendance') {
       loadAttendance();
+      const interval = setInterval(loadAttendance, 15000);
+      return () => clearInterval(interval);
     }
     if (activeSection === 'members' && user?.role === 'admin') {
       loadMembers();
       loadDeletedMembers();
       loadRoleHistory();
+      
+      const interval = setInterval(() => {
+        loadMembers();
+        loadDeletedMembers();
+        loadRoleHistory();
+      }, 15000);
+      
+      return () => clearInterval(interval);
     }
   }, [activeSection, attendanceDate, user]);
 

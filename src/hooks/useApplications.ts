@@ -56,7 +56,7 @@ export const useApplications = () => {
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Заявка одобрена' });
-        loadApplications();
+        await loadApplications();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось одобрить заявку', variant: 'destructive' });
@@ -73,7 +73,7 @@ export const useApplications = () => {
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Заявка отклонена' });
-        loadApplications();
+        await loadApplications();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось отклонить заявку', variant: 'destructive' });

@@ -34,7 +34,7 @@ export const useNews = () => {
       
       if (data.success) {
         toast({ title: 'Новость опубликована!' });
-        loadNews();
+        await loadNews();
       }
     } catch (error) {
       toast({ title: 'Ошибка', description: 'Не удалось опубликовать новость', variant: 'destructive' });
