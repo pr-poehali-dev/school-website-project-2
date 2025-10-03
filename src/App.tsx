@@ -12,6 +12,7 @@ import MembersSection from '@/components/MembersSection';
 import RoleHistorySection from '@/components/RoleHistorySection';
 import DeletedMembersSection from '@/components/DeletedMembersSection';
 import GradesSection from '@/components/GradesSection';
+import MemberGradesModal from '@/components/MemberGradesModal';
 import SchoolFooter from '@/components/SchoolFooter';
 
 const API_URLS = {
@@ -81,6 +82,7 @@ function App() {
   const [members, setMembers] = useState<User[]>([]);
   const [deletedMembers, setDeletedMembers] = useState<User[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryRecord[]>([]);
+  const [selectedMember, setSelectedMember] = useState<{ id: number; name: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -434,6 +436,10 @@ function App() {
     }
   };
 
+  const handleViewGrades = (id: number, name: string) => {
+    setSelectedMember({ id, name });
+  };
+
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -497,6 +503,7 @@ function App() {
               onRemoveMember={handleRemoveMember}
               onPromoteToAdmin={handlePromoteToAdmin}
               onDemoteToMember={handleDemoteToMember}
+              onViewGrades={handleViewGrades}
             />
             <DeletedMembersSection
               deletedMembers={deletedMembers}
@@ -518,6 +525,16 @@ function App() {
       </main>
 
       <SchoolFooter onNavigate={setActiveSection} />
+
+      {selectedMember && (
+        <MemberGradesModal
+          isOpen={!!selectedMember}
+          onClose={() => setSelectedMember(null)}
+          userId={selectedMember.id}
+          userName={selectedMember.name}
+          apiUrl={API_URLS.members}
+        />
+      )}
 
       <Toaster />
     </div>

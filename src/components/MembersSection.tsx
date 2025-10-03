@@ -9,6 +9,8 @@ interface Member {
   full_name: string;
   role: string;
   created_at: string;
+  average_score?: number;
+  total_grades?: number;
 }
 
 interface MembersSectionProps {
@@ -16,9 +18,10 @@ interface MembersSectionProps {
   onRemoveMember: (id: number) => void;
   onPromoteToAdmin: (id: number) => void;
   onDemoteToMember: (id: number) => void;
+  onViewGrades: (id: number, name: string) => void;
 }
 
-const MembersSection = ({ members, onRemoveMember, onPromoteToAdmin, onDemoteToMember }: MembersSectionProps) => {
+const MembersSection = ({ members, onRemoveMember, onPromoteToAdmin, onDemoteToMember, onViewGrades }: MembersSectionProps) => {
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       <Card>
@@ -39,18 +42,39 @@ const MembersSection = ({ members, onRemoveMember, onPromoteToAdmin, onDemoteToM
                     <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
                       <Icon name="User" className="text-white" size={24} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">{member.full_name}</p>
                       <p className="text-sm text-muted-foreground">{member.email}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Присоединился: {new Date(member.created_at).toLocaleDateString('ru')}
-                      </p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Присоединился: {new Date(member.created_at).toLocaleDateString('ru')}
+                        </p>
+                        {member.average_score !== undefined && member.total_grades !== undefined && member.total_grades > 0 && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              <Icon name="Star" size={12} className="mr-1 text-yellow-500" />
+                              Средняя оценка: {member.average_score.toFixed(1)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              Оценок: {member.total_grades}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
                       {member.role === 'admin' ? 'Администратор' : 'Участник'}
                     </Badge>
+                    <Button
+                      onClick={() => onViewGrades(member.id, member.full_name)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Icon name="Award" size={16} className="mr-1" />
+                      Оценки
+                    </Button>
                     {member.role === 'member' ? (
                       <>
                         <Button

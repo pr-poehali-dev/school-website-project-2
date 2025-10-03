@@ -141,11 +141,27 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     cursor.execute(
                         "SELECT id, email, full_name, role, created_at, is_active FROM users WHERE is_active = FALSE ORDER BY created_at DESC"
                     )
+                    members = cursor.fetchall()
                 else:
                     cursor.execute(
-                        "SELECT id, email, full_name, role, created_at, is_active FROM users WHERE is_active = TRUE ORDER BY created_at DESC"
+                        """
+                        SELECT 
+                            u.id, 
+                            u.email, 
+                            u.full_name, 
+                            u.role, 
+                            u.created_at, 
+                            u.is_active,
+                            ROUND(AVG(g.score)::numeric, 1) as average_score,
+                            COUNT(g.id)::integer as total_grades
+                        FROM users u
+                        LEFT JOIN grades g ON u.id = g.user_id
+                        WHERE u.is_active = TRUE
+                        GROUP BY u.id, u.email, u.full_name, u.role, u.created_at, u.is_active
+                        ORDER BY u.created_at DESC
+                        """
                     )
-                members = cursor.fetchall()
+                    members = cursor.fetchall()
                 
                 return {
                     'statusCode': 200,
